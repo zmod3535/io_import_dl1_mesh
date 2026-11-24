@@ -1,10 +1,10 @@
 bl_info = {
-    "name": "Dying Light 1 Mesh/Part Importer (.bin / .msh)",
+    "name": "Dying Light 1 Mesh & Map Importer (.bin / .msh / .sobj)",
     "author": "Reverse Engineering Assistant",
-    "version": (1, 2, 0),
+    "version": (1, 3, 0),
     "blender": (5, 1, 0),
-    "location": "File > Import > Dying Light 1 (.bin, .msh)",
-    "description": "Imports single or multiple Dying Light 1 segmented meshes (_part00..04) and .msh/.bin files",
+    "location": "File > Import > Dying Light 1",
+    "description": "Imports Dying Light 1 meshes (_part00..04, .msh) and static map layouts (.sobj)",
     "category": "Import-Export",
 }
 
@@ -13,7 +13,8 @@ import re
 import bpy
 from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, CollectionProperty
-from . import dl1_parser, dl1_mesh_builder
+from . import dl1_parser, dl1_mesh_builder, dl1_map_importer
+
 
 def _get_bundle_key(filepath: str) -> str:
     folder = os.path.dirname(filepath)
@@ -22,13 +23,14 @@ def _get_bundle_key(filepath: str) -> str:
     base = m.group(1) if m else os.path.splitext(fname)[0]
     return os.path.normcase(os.path.join(folder, base))
 
+
 class IMPORT_OT_dl1_mesh(bpy.types.Operator, ImportHelper):
     bl_idname = "import_mesh.dl1_bin"
     bl_label = "Import Dying Light 1 Mesh(es)"
     bl_options = {'REGISTER', 'UNDO'}
 
     filter_glob: StringProperty(default="*.bin;*.msh", options={'HIDDEN'})
-    
+
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
@@ -59,7 +61,6 @@ class IMPORT_OT_dl1_mesh(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, "Файлы не выбраны")
             return {'CANCELLED'}
 
-        # Убираем дубликаты, если пользователь выделил сразу несколько _part00..04 одной модели
         unique_paths = list()
         seen_keys = set()
         for path in target_files:
@@ -124,16 +125,28 @@ class IMPORT_OT_dl1_mesh(bpy.types.Operator, ImportHelper):
         self.report({'INFO'}, msg)
         return {'FINISHED'}
 
-def menu_func_import(self, context):
+
+def menu_func_import_mesh(self, context):
     self.layout.operator(IMPORT_OT_dl1_mesh.bl_idname, text="Dying Light 1 Mesh (.bin / .msh)")
+
+
+def menu_func_import_map(self, context):
+    self.layout.operator(dl1_map_importer.IMPORT_OT_dl1_map.bl_idname, text="Dying Light 1 Map (.sobj)")
+
 
 def register():
     bpy.utils.register_class(IMPORT_OT_dl1_mesh)
-    bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
+    bpy.utils.register_class(dl1_map_importer.IMPORT_OT_dl1_map)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import_mesh)
+    bpy.types.TOPBAR_MT_file_import.append(menu_func_import_map)
+
 
 def unregister():
-    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_map)
+    bpy.types.TOPBAR_MT_file_import.remove(menu_func_import_mesh)
+    bpy.utils.unregister_class(dl1_map_importer.IMPORT_OT_dl1_map)
     bpy.utils.unregister_class(IMPORT_OT_dl1_mesh)
+
 
 if __name__ == "__main__":
     register()
